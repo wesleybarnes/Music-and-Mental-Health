@@ -1,0 +1,1120 @@
+---
+title: "Final Paper"
+author: "STOR 320.02 Group 3"
+date: "23 July 2023"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    theme: journal
+---
+
+
+```{r setup, include=FALSE, warning = FALSE, show_col_types = FALSE, echo = FALSE}
+knitr::opts_chunk$set(echo = TRUE, error=FALSE)
+options(warn=-1)
+
+library(knitr)
+#install.packages('tidyverse')
+library(tidyverse)
+library(dplyr)
+#install.packages(psych)
+library(psych)
+#install.packages(rstatix)
+library(rstatix)
+#install.packages(forcats)
+library(forcats)
+#install.packages(beeswarm)
+library(beeswarm)
+library(kableExtra)
+library(htmltools)
+library(modelr)
+library(formattable)
+library(gifski)
+library(av)
+library(gganimate)
+library(plotly)
+# install.packages("plotly")
+# install.packages("gifski")
+# install.packages("av")
+# install.packages("gganimate")
+#install.packages('Metrics')
+library(Metrics)
+library(gganimate)
+#install.packages('transformr')
+library(transformr)
+library(gganimate)
+
+```
+
+
+```{r pressure, echo=FALSE,results="asis"}
+
+df = read_csv('mxmh_survey_results.csv', show_col_types = FALSE)
+df2 = df %>%
+  # omitting NA values
+  na.omit(df) %>%
+  # renaming variables with spaces
+  rename('primary_streaming_service' = 'Primary streaming service',
+         'hours_per_day' = 'Hours per day',
+         'while_working' = 'While working',
+         'fav_genre' = 'Fav genre',
+         'foreign_languages' = 'Foreign languages',
+         'frequency_classical' = 'Frequency [Classical]',
+         'frequency_country' = 'Frequency [Country]',
+         'frequency_edm' = 'Frequency [EDM]',
+         'frequency_folk' = 'Frequency [Folk]',
+         'frequency_gospel' = 'Frequency [Gospel]',
+         'frequency_hiphop' = 'Frequency [Hip hop]',
+         'frequency_jazz' = 'Frequency [Jazz]',
+         'frequency_kpop' = 'Frequency [K pop]',
+         'frequency_latin' = 'Frequency [Latin]',
+         'frequency_lofi' = 'Frequency [Lofi]',
+         'frequency_metal' = 'Frequency [Metal]',
+         'frequency_pop' = 'Frequency [Pop]',
+         'frequency_r&b' = 'Frequency [R&B]',
+         'frequency_rap' = 'Frequency [Rap]',
+         'frequency_rock' = 'Frequency [Rock]',
+         'frequency_video_game_music' = 'Frequency [Video game music]',
+         'music_effects' = 'Music effects')
+
+convert_frequency = function(frequency) {
+  frequency = ifelse(frequency == "Never", 0, 
+                      ifelse(frequency == 'Rarely', 0,
+                             ifelse(frequency == 'Sometimes', 1, 
+                                    ifelse(frequency == 'Very frequently', 1, NA))))
+}
+
+convert_binary = function(value) {
+  result = ifelse(value == "Yes", 1, 0)
+}
+
+
+combined = c(scale(df2$Depression) +  scale(df2$Anxiety) + scale(df2$Insomnia) + scale(df2$OCD))
+# Converting Tables
+df3 = df2 %>%
+  # Converting frequencies into binary
+  mutate(across(12:27, convert_frequency)) %>% 
+  # Creating combined standardized score
+  mutate(`Combined MH(Std)` = combined)
+  
+# Necessary Columns Only
+df4= df3 %>%
+  select(-c("Timestamp", "fav_genre", "Permissions", "primary_streaming_service", "music_effects", "BPM"))
+
+# Converting Binaries
+
+df5 = df4 %>%
+  mutate(across(3:7, convert_binary))
+
+df6 = head(df5, n = 5)
+
+```
+
+<br>
+
+# Introduction
+<br>
+<blockquote>
+
+The connection between mental health and music has been a subject of extensive exploration, with a growing body of research shedding light on the impact that music can have on mental well-being. The therapeutic potential of music spans diverse populations and psychological conditions. Numerous studies have explored this link, revealing how music can positively influence mood, reduce stress, and alleviate symptoms of mental disorders. <a href="https://www.health.harvard.edu/blog/can-music-improve-our-health-and-quality-of-life-202207252786" style="color: #A7C7E7;">Harvard Medical School</a> noted that different music therapy tools, like learning or playing an instrument, listening, and singing, can be a form of healing for our mental and physical health. Additionally, the <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8566759/" style="color: #A7C7E7;">Brain, Behavior, & Immunity - Health Journal</a> revealed that interventions using music, such as music therapy, can positively treat symptoms related to a variety of disorders and improve the immune system. Music therapy has firmly established itself as an evidence-based practice, providing beneficial outcomes for holistic health.
+
+<br>
+
+Group three was intrigued with this specific therapeutic intervention, and wanted to explore the
+ <a href="https://www.kaggle.com/datasets/catherinerasgaitis/mxmh-survey-results" style="color: #A7C7E7;">Music & Mental Health Survey Results</a> dataset, curated to explore potential correlations between an individual's music taste and their self-reported mental well-being. The aim of this project is twofold: firstly, to identify the most effective model for assessing cumulative self-reported mental health scores, and secondly, finding the optimal model for evaluating each individual self-reported mental health condition including Depression, Anxiety, OCD and Insomnia. By exploring these two questions, we hope to shed light on the interplay between music preferences and mental health, ultimately offering valuable insights on the application of music therapy and the mysteries of the human mind.
+
+<br>
+
+Group three aim to find the optimal model for evaluating cumulative self-reported mental health scores, encompassing an array of variables that intertwine music-related and non-music-related aspects. By selecting factors like favorite music genre, personal instrumental or composition experiences, and hours spent listening to music, we hope to unveil the patterns that tie an individual's music profile and their overall mental well-being. Understanding the correlations between these variables could educate music therapists on crafting interventions tailored to an individual's unique music preferences, and enhance therapeutic outcomes significantly. Furthermore, our exploration extends to identifying the most effective model for evaluating individual mental health conditions. Exploring different models and comparing which one is best for each condition can inform professionals on the best tools to analyze mental health conditions. Lastly, it will foster a deeper appreciation for the healing properties of music, solidifying its validity in healthcare.
+
+<br>
+
+In the following sections, we will present the results of our analyses, showcasing the effectiveness of various models in capturing self-reported mental health scores and shedding light on the interplay between music and the mind. Our hope is that these results will not only ignite excitement but also inspire further investigation into the subject, unlocking the potential of music as a tool for enhancing mental well-being and enriching our understanding of the human mind.
+
+<br>
+
+# Data
+
+<br>
+<blockquote>
+
+Group three chose to analyze the dataset "Music & Mental Health Survey Results" which was collected by Catherine Rasgaitis from the University of Washington via Google Form. The survey form was posted on various platforms, such as Reddit forums, Discord servers, and social media sites, to ensure that observations are not limited to students on campus but are open to populations of all ages and locations. Additionally, the survey was advertised through the use of posters and "business cards" at various public locations, including libraries, parks, and other venues. The original dataset contained 616 observations and 33 columns. Each  observation is representative of the respondents’ musical background and listening habits, their rank of how often they listen to 16 different music genres, and their rank of `Anxiety`, `Depression`, `Insomnia`, and `OCD` on a scale of zero to ten (zero representing no experience with the condition and ten representing experience with the condition on a regular basis).  All respondents have approved the publication and utilization of their data. 
+
+The variables we decided to utilize that relate to musical background and listening habits include:  
+
+<br>
+
+```{r, results="asis", echo = F, eval = T}
+variable_descriptions = data.frame(
+  Variable = c(
+    "Age",
+    "Hours Per Day",
+    "While Working",
+    "Instrumentalist",
+    "Composer",
+    "Exploratory",
+    "Foreign Languages"
+  ),
+  Description = c(
+    "The age of the respondent.",
+    "The number of hours the respondent listens to music daily.",
+    "A binary variable indicating whether the respondent listens to music while studying or working.",
+    "A binary variable revealing whether the respondent plays an instrument regularly.",
+    "A binary variable signifying whether the respondent composes music.",
+    "A binary variable indicating whether the respondent actively explores new artists/genres.",
+    "A binary variable disclosing whether the respondent regularly listens to music with lyrics in a language they are not fluent in."
+  ),
+  stringsAsFactors = FALSE
+)
+
+variable_descriptions %>%   kbl() %>%
+ kable_styling(bootstrap_options = c("striped", "hover", "condensed"), html_font='Cambria')
+
+
+```
+
+
+<br>
+
+Variables such as `Favorite Genre`, `BPM`, and `Primary Streaming Service` were excluded due to factors like the high number of unique variables or unreliability due to the self-reporting method. However, group three did consider all the frequency variables, which denote whether respondents listen to 16 different music genres: `Classical`, `Country`, `EDM`, `Folk`, `Gospel`, `Hip-Hop`, `Jazz`, `K-Pop`, `Latin`, `Lofi`, `Metal`, `Pop`, `Rap`, `Rock`, `Video Game Music` and `R&B`. Additionally, Group three considered all variables that represented the respondents’ rank of `Anxiety`, `Depression`, `Insomnia`, and  `OCD` . With consideration that each person has subjective understanding for the scale, we can only predict an approximation for a person’s self-reported mental health score. Figure 1.1 -1.4 display a preview of the table containing the variables group three focused on analyzing:
+
+
+```{r,results="asis", eval=T, echo=F}
+df10 = head(df5, n = 3)
+
+table_df = df10 %>%
+  select(Age, hours_per_day, while_working, Instrumentalist, Composer,
+         Exploratory, foreign_languages) %>%
+  mutate(
+    hours_per_day = color_tile("white", "#1DB954")(hours_per_day),
+    while_working = ifelse(while_working < 1, cell_spec(while_working, "html", color = "red", bold = T),
+                           cell_spec(while_working, "html", color = "#1DB954", bold = T)),
+    Instrumentalist = ifelse(Instrumentalist < 1, cell_spec(Instrumentalist, "html", color = "red", bold = T),
+                             cell_spec(Instrumentalist, "html", color = "#1DB954", bold = T)),
+    Composer = ifelse(Composer < 1, cell_spec(Composer, "html", color = "red", bold = T),
+                      cell_spec(Composer, "html", color = "#1DB954", bold = T)),
+    Exploratory = ifelse(Exploratory < 1, cell_spec(Exploratory, "html", color = "red", bold = T),
+                         cell_spec(Exploratory, "html", color = "#1DB954", bold = T)),
+    foreign_languages = ifelse(foreign_languages < 1, cell_spec(foreign_languages, "html", color = "red", bold = T),
+                               cell_spec(foreign_languages, "html", color = "#1DB954", bold = T)))
+
+kable(table_df, format = "html",align = 'c', escape = FALSE, col.names = c('Age', 'Hours Per Day','While Working','Instrumentalist','Composer','Exploratory','Foreign Languages')) %>%
+  kable_styling("hover", full_width = FALSE, html_font = 'Cambria') %>%
+  column_spec(1:3, width = "2cm") %>%
+  add_header_above(c(" " = 1, "Figure 1.1: Preview of Musical Background and Listening Habits Data" = 6))
+
+```
+
+```{r, echo = F, eval = T, results = "asis", warning = F}
+
+df10 = head(df5, n = 3)
+
+table_df2 = df10 %>% 
+  select(frequency_classical, frequency_country, frequency_edm, frequency_folk, frequency_gospel, frequency_hiphop, frequency_jazz, frequency_kpop) %>%
+  mutate( 
+    frequency_classical = ifelse(frequency_classical < 1,
+                  cell_spec(frequency_classical, "html", color = "red", bold = T),
+                  cell_spec(frequency_classical, "html", color = "#1DB954", bold = T)),
+    frequency_country = ifelse(frequency_country < 1,
+                  cell_spec(frequency_country, "html", color = "red", bold = T),
+                  cell_spec(frequency_country, "html", color = "#1DB954", bold = T)),
+    frequency_edm = ifelse(frequency_edm < 1,
+                  cell_spec(frequency_edm, "html", color = "red", bold = T),
+                  cell_spec(frequency_edm, "html", color = "#1DB954", bold = T)),
+    frequency_folk = ifelse(frequency_folk < 1,
+                  cell_spec(frequency_folk, "html", color = "red", bold = T),
+                  cell_spec(frequency_folk, "html", color = "#1DB954", bold = T)),
+    frequency_gospel = ifelse(frequency_gospel < 1,
+                  cell_spec(frequency_gospel, "html", color = "red", bold = T),
+                  cell_spec(frequency_gospel, "html", color = "#1DB954", bold = T)),
+    frequency_hiphop = ifelse(frequency_hiphop < 1,
+                  cell_spec(frequency_hiphop, "html", color = "red", bold = T),
+                  cell_spec(frequency_hiphop, "html", color = "#1DB954", bold = T)),
+    frequency_jazz = ifelse(frequency_jazz < 1,
+                  cell_spec(frequency_jazz, "html", color = "red", bold = T),
+                  cell_spec(frequency_jazz, "html", color = "#1DB954", bold = T)),
+    frequency_kpop = ifelse(frequency_kpop < 1,
+                  cell_spec(frequency_kpop, "html", color = "red", bold = T),
+                  cell_spec(frequency_kpop, "html", color = "#1DB954", bold = T)))
+    
+kable(table_df2, format = "html",align = 'c', escape = FALSE, col.names = c('Classical','Country','EDM', 'Folk', 'Gospel', 'Hip Hop', 'Jazz', 'K-Pop')) %>%
+  kable_styling("hover", full_width = FALSE, html_font = 'Cambria', position = 'center') %>%
+  column_spec(1:3, width = "2cm") %>%
+  add_header_above(c("Figure 1.12: Preview of Music Genre Listening Frequency Data" = 8))
+```
+
+
+```{r, results = "asis", echo = F, eval = T}
+
+table_df4 = df10 %>% select(frequency_latin, frequency_lofi, frequency_metal, frequency_pop, frequency_rap, `frequency_r&b`, frequency_video_game_music, frequency_rock) %>%
+  mutate(
+    frequency_latin = ifelse(frequency_latin < 1,
+                  cell_spec(frequency_latin, "html", color = "red", bold = T),
+                  cell_spec(frequency_latin, "html", color = '#1DB954', bold = T)),
+    frequency_lofi = ifelse(frequency_lofi < 1,
+                  cell_spec(frequency_lofi, "html", color = "red", bold = T),
+                  cell_spec(frequency_lofi, "html", color = '#1DB954', bold = T)),
+    frequency_metal = ifelse(frequency_metal < 1,
+                  cell_spec(frequency_metal, "html", color = "red", bold = T),
+                  cell_spec(frequency_metal, "html", color = '#1DB954', bold = T)),
+    frequency_pop = ifelse(frequency_pop < 1,
+                  cell_spec(frequency_pop, "html", color = "red", bold = T),
+                  cell_spec(frequency_pop, "html", color = '#1DB954', bold = T)), 
+    frequency_rap = ifelse(frequency_rap < 1,
+                  cell_spec(frequency_rap, "html", color = "red", bold = T),
+                  cell_spec(frequency_rap, "html", color = '#1DB954', bold = T)),
+    frequency_rock = ifelse(frequency_rock < 1,
+                  cell_spec(frequency_rock, "html", color = "red", bold = T),
+                  cell_spec(frequency_rock, "html", color = '#1DB954', bold = T)),
+    `frequency_r&b` = ifelse(`frequency_r&b` < 1,
+                  cell_spec(`frequency_r&b`, "html", color = "red", bold = T),
+                  cell_spec(`frequency_r&b`, "html", color = '#1DB954', bold = T)),
+    frequency_video_game_music = ifelse(frequency_video_game_music < 1,
+                  cell_spec(frequency_video_game_music, "html", color = "red", bold = T),
+                  cell_spec(frequency_video_game_music, "html", color = '#1DB954', bold = T)))
+ 
+kable(table_df4, format = "html",align = 'c', escape = FALSE, col.names = c('Latin', 'Lofi', 'Metal','Pop', 'Rap','Rock','R&B', 'Video Game Music')) %>%
+  kable_styling("hover", full_width = FALSE, html_font = 'Cambria') %>%
+    column_spec(1:3, width = "2cm") %>%
+  add_header_above(c("Figure 1.13: Preview of Music Genre Listening Frequency Data" = 8))
+
+```
+
+
+
+```{r, results = "asis", eval = T, echo = F}
+df6 %>% select(Anxiety, Depression, Insomnia, OCD, `Combined MH(Std)`)%>%
+  mutate(
+  Anxiety = color_tile("white", "#4b9173")(Anxiety),
+    Depression = color_tile("white", "#f03785")(Depression),
+    Insomnia = color_tile("white", "#cdf564")(Insomnia),
+    OCD = color_tile("white", "#fa9c1b")(OCD),
+    `Combined MH(Std)` = color_tile("white", "#a21db9")(round(`Combined MH(Std)`,3))) %>%
+kable("html", escape = F, align = 'c') %>% kable_styling("hover", full_width = F, html_font = 'Cambria') %>% column_spec(1:4, width = "3cm") %>% add_header_above(c("Figure 1.2: Preview of Mental Health Score Data" = 5))
+
+```
+
+
+<br>
+
+All the variables in the table are noted to be numeric, including the binary variables and frequency variables. The responses for binary variables were symbolized as "1" representing "yes," while "0" represented "no." Additionally, the frequency responses, which were in the form of a Likert-type question, were converted into a binary and then numerical format. Responses such as "never" and "rarely" were classified as "low frequency," while responses like "sometimes" and "very frequently" were classified as "high frequency." Subsequently, the responses were treated as numeric binary values, where "1" represented "high frequency," and "0" represented "low frequency." The purpose of converting the variables into a uniform numeric format was to enable them as predictors, significantly aiding group three in answering the second question about finding which model works best for each individual mental health condition. Furthermore, group three was keen to see which predictors hold greater significance for each mental health condition. The original categorical format of the variables were not suitable for linear regression, while binary conversion eliminated unnecessary complexity for our path to find the best model and predictors. 
+<br>
+
+Another significant variable on the table is the `Std Combined MH`, also known as the Standardized Mental Health Score for each respondent. This specific variable was calculated by standardizing the four mental health-related variables (`Depression`, `Anxiety`, `Insomnia`, and `OCD`) and taking their sum. This score reflects the overall self-reported mental health status of each individual, considering the contributions of Depression, Anxiety, Insomnia, and OCD. The importance of standardization can be observed after viewing the histogram below, which represents the distribution of scores for each of the four mental health conditions: 
+
+```{r, eval = T, echo = F, results = "asis", warning=FALSE}
+# Select relevant columns for the histogram
+df_a = df2 %>%
+  select(Depression, Anxiety, Insomnia, OCD)
+
+# Create a new column to represent mental health condition (Depression, Anxiety, Insomnia, or OCD)
+df_a = df_a %>%
+  pivot_longer(cols = everything(), names_to = "MentalHealthCondition", values_to = "Score")
+
+# Plot the animated histogram
+animated_histogram = ggplot(df_a, aes(x = Score)) +
+  geom_histogram(color = '#191414',fill = '#1DB954', binwidth = 0.5) +
+  labs(title = "{closest_state}", x = "Score", y = 'Count') +
+  transition_states(MentalHealthCondition, transition_length = 1, state_length = 2) +
+  ease_aes('linear') +
+  theme_minimal()
+
+# Display the animation
+animate(animated_histogram)
+
+
+```
+
+<br>
+
+It can be noted that the distributions of each of the histograms differ. Specifically, `Depression` is bi-modal, `Anxiety` is left-skewed, and `Insomnia` and `OCD` are right-skewed. This difference in distribution can lead to misleading interpretations if direct comparisons are made between the raw data without standardization. However, through standardization, we can make direct comparisons of proportions and infer the relative scores across the different mental health-related variables. Finding the Standardized Self-Reported Mental Health Score will aid group three with navigating question one, which is driven to see which model works best for finding the  cumulative self-reported mental health scores. 
+
+<br>
+
+
+# Results
+
+<br>
+<blockquote>
+
+Group Three aims to investigate two questions: “What is the most effective model for assessing cumulative self-reported mental health scores?” and “What is the optimal model for evaluating each individual self-reported mental health condition?” Given that these two questions evaluate similar predictions, Group Three decided to utilize a similar modeling structure to predict all five variables and investigate the optimal model for predictions.
+
+<br>
+
+Group three utilized cross-validation which fits the original dataset into ten folds of training and testing datasets, and uses linear regression models as the modeling method. Group three analyzed the two questions by constructing and comparing five models, each individually applied to every observation in the data set. To determine the model with the best performance, group three condensed each model’s average Mean Absolute Error (MAE) into a table. MAE is a measure of how far, on average, the predictions of a model are from the actual combined self-reported mental health scores. 
+
+<br>
+
+Starting with all variables, Group Three used a variables' p-value to reduce the number of predictors to determine which ones are the most informative. Group Three then plotted the models together with an empty linear regression model. The empty model in this scenario functions as a reference model to assess each model's predicting ability. In the context of our data, the empty model predicts a person's self-reported mental health score without considering any variables related to their background and listening habits. Observe each model's MAE in the table below:
+
+<br>
+
+### Standardized Mental Health Scores Prediction
+
+<br>
+<blockquote>
+
+The plot below displays the five models that aim to predict standardized self-reported mental health scores with various predictors. The x-axis on the plot is the variable `Hours Per Day`. 
+
+<br>
+
+```{r, warning = FALSE, echo=FALSE, eval = T, warning=FALSE}
+
+## Total MH Linear Regression (all variables)
+final_df = na.omit(df5) %>%
+  crossv_kfold(10)
+
+#MAE 
+# residual = actual - predict
+
+MAE.func = function(residual){
+  mean(abs(residual))
+}
+
+
+train.model.func = function(data){
+  mod = lm(`Combined MH(Std)` ~ Age + 
+  while_working + Instrumentalist + Composer + Exploratory + 
+  foreign_languages + frequency_classical + frequency_country + frequency_edm + 
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop + 
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music, data = data)
+  return(mod)
+}
+
+
+m1a_res = final_df %>% 
+       mutate(tr.model = map(train, train.model.func))
+
+predict_1a = m1a_res %>% 
+          mutate(predict = map2(test,tr.model, ~augment(.y,newdata=.x))) %>%
+          select(predict) %>%
+          unnest() 
+
+predict_1a = predict_1a %>%
+  mutate(.resid = predict_1a$`Combined MH(Std)` - predict_1a$.fitted)
+
+total_mh_res_1a = predict_1a %>%
+  select(.fitted, .resid)
+
+#final table
+#total_mh_res_1a
+
+#plot
+# ggplot(total_mh_res_1b, aes(x = Age, y = .resid)) +
+#   geom_point() + 
+#   geom_abline(intercept = 0, slope = 0, color = "red") + 
+#   theme_minimal()
+
+# MAE.func(total_mh_res_1a$.resid)
+# 
+# ggplot(total_mh_res_1a, aes(x= .fitted, y= .resid)) +
+#   geom_point() +
+#   geom_smooth(method='lm') +
+#   geom_abline(slope=0, intercept=0)
+
+
+
+#############################################################################################################
+
+# Total MH Linear Regression (Top Interactions)
+
+df6 = df5 %>%
+  select(-c('Anxiety','Depression','OCD','Insomnia', 'hours_per_day'))
+
+fit = lm(`Combined MH(Std)` ~ . ^2, data = df6)
+fit2 = tidy(fit)
+
+
+
+#Best interaction_effect: Age and While working
+best_model = head(fit2 %>%
+  mutate(estimate = abs(estimate)) %>%
+  arrange(estimate), 1)
+
+best_1 = fit2 %>%
+  mutate(estimate = abs(estimate)) %>%
+  arrange(estimate)
+
+most_significant = fit2[2:24,] %>%
+  arrange(p.value) %>%
+  subset(p.value <=0.05)
+#most_significant 
+
+
+
+train.model.func.2 = function(data){
+  mod = lm(`Combined MH(Std)` ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music + (Age * frequency_country), data = data)
+  return(mod)
+}
+
+
+m1b_res = final_df %>% 
+       mutate(tr.model = map(train, train.model.func.2))
+
+predict_1b = m1b_res %>% 
+          mutate(predict = map2(test,tr.model, ~augment(.y,newdata=.x))) %>%
+          select(predict) %>%
+          unnest() 
+
+predict_1b = predict_1b %>%
+  mutate(.resid = predict_1b$`Combined MH(Std)` - predict_1b$.fitted)
+
+total_mh_res_1b = predict_1b %>%
+  select(.fitted, .resid)
+
+#final table
+# total_mh_res_1b
+# 
+# 
+# MAE.func(total_mh_res_1b$.resid)
+# 
+# ggplot(total_mh_res_1b, aes(x= .fitted, y= .resid)) +
+#   geom_point() +
+#   geom_smooth(method='lm') +
+#   geom_abline(slope=0, intercept=0)
+
+
+
+############################################################################################################
+
+
+# Total MH Linear Regression (Significant Values Only)
+
+train.model.func.3 = function(data){
+  mod = lm(`Combined MH(Std)` ~ frequency_edm + Instrumentalist, data = data)
+  return(mod)
+}
+
+
+
+m1c_res = final_df %>% 
+       mutate(tr.model = map(train, train.model.func.3))
+
+predict_1c = m1c_res %>% 
+          mutate(predict = map2(test,tr.model, ~augment(.y,newdata=.x))) %>%
+          select(predict) %>%
+          unnest() 
+
+predict_1c = predict_1c %>%
+  mutate(.resid = predict_1c$`Combined MH(Std)` - predict_1c$.fitted)
+
+total_mh_res_1c = predict_1c %>%
+  select(.fitted, .resid)
+
+#final table
+# total_mh_res_1c
+
+
+# MAE.func(total_mh_res_1c$.resid)
+# 
+# ggplot(total_mh_res_1c, aes(x= .fitted, y= .resid)) +
+#   geom_point() +
+#   geom_smooth(method='lm') +
+#   geom_abline(slope=0, intercept=0)
+
+
+##########################################################################################################
+
+
+## Total MH Linear Regression (Significant Values and Interaction)
+
+train.model.func.4 = function(data){
+  mod = lm(`Combined MH(Std)` ~ frequency_edm + Instrumentalist + (Age * frequency_country), data = data)
+  return(mod)
+}
+
+
+
+m1d_res = final_df %>% 
+       mutate(tr.model = map(train, train.model.func.4))
+
+predict_1d = m1d_res %>% 
+          mutate(predict = map2(test,tr.model, ~augment(.y,newdata=.x))) %>%
+          select(predict) %>%
+          unnest() 
+
+predict_1d = predict_1d %>%
+  mutate(.resid = predict_1d$`Combined MH(Std)` - predict_1d$.fitted)
+
+total_mh_res_1d = predict_1d %>%
+  select(.fitted, .resid)
+
+#final table
+# total_mh_res_1d
+# 
+# 
+#MAE.func(total_mh_res_1d$.resid)
+# 
+# 
+
+
+
+
+#############################################################################################################
+
+## Empty Model
+
+empty_model = lm(`Combined MH(Std)` ~ 1, data = df5)
+
+# Get the predicted values from the empty model
+predicted_values = predict(empty_model)
+
+
+total_mh_res_1d = total_mh_res_1d %>%
+  mutate('Combined MH(Std)' = df5$`Combined MH(Std)`)
+
+
+
+
+# ggplot() +
+#   geom_point(data = df5, aes(x = 1, y = `Combined MH(Std)`)) +
+#   geom_vline(yintercept = mean(predicted_values), color = "blue") +
+#   labs(title = "Empty Model",
+#        x = "Observations",
+#        y = "Combined MH(Std)") 
+
+
+#############################################################################################################
+
+## 
+q1_tbl = df5 %>%
+  select(-c(24:27)) %>%
+  mutate( `All Variables` = predict(lm(`Combined MH(Std)` ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music, data = df5))) %>%
+
+  mutate(`All Variables + Age * Country [Frequency]` = predict(lm(`Combined MH(Std)` ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music + (Age * frequency_country), data = df5))) %>%
+
+  mutate(`Only Significant Variables` = predict(lm(`Combined MH(Std)` ~ frequency_edm + Instrumentalist, data = df5))) %>%
+
+  mutate(`Only Significant Variables and Interactions` = predict(lm(`Combined MH(Std)` ~ frequency_edm + Instrumentalist + (Age * frequency_country), data = df5))) %>%
+
+  mutate(Empty = predict(lm(`Combined MH(Std)` ~ 1, data = df5)))
+
+
+
+q1_a_tbl = q1_tbl %>%
+  gather(`All Variables`, `All Variables + Age * Country [Frequency]`, `Only Significant Variables`, `Only Significant Variables and Interactions`, `Empty`, key = "Predictors", value = "Predictions", factor_key = T)
+
+```
+
+```{r, eval = T, echo = F, results = "asis", warning=FALSE, message=FALSE}
+
+
+a = ggplot(filter(q1_a_tbl)) +
+  geom_point(aes(x = hours_per_day, y = `Combined MH(Std)`), alpha = 0.05, stroke = 0) +
+  geom_line(aes(x = hours_per_day, y = Predictions, color = Predictors)) +
+  theme_minimal() +
+  xlab('Hours Per Day') +
+  ylab('Total Mental Health Score') +
+  ggtitle('Cumulative Models for Standardized MH Scores') +
+  transition_states(after_stat(Predictors), transition_length = 100, state_length = 10) +
+  ease_aes('elastic-in') +
+  transition_reveal(hours_per_day)
+
+
+#plotly_plot = ggplotly(a, width=875)
+# 
+#plotly_plot
+
+width_in_pixels = 1000
+
+# Save the animation as a gif with the specified width
+animate(a, width = width_in_pixels, height = 500, renderer = gifski_renderer(), res = 130)
+
+
+
+```
+
+<br>
+
+Now we will construct a table to compare the four models with the empty model based on MAE. Since the empty model has no predictor, the MAE should be the largest. We will then determine the best model that can predict the `Standardized Mental Health Scores`.
+
+<br>
+
+```{r, warning = FALSE, echo =FALSE, eval = T, warning=FALSE}
+
+lol = c('Second','First','Fourth','Third','Fifth')
+
+reg_q1 = q1_a_tbl %>% 
+  rowwise() %>%
+  mutate(MAE = mae(`Combined MH(Std)`, Predictions)) %>%
+  group_by(Predictors) %>%
+  summarise(MAE = mean(MAE)) %>%
+  arrange(MAE) %>%
+  mutate(Model = lol) %>%
+  select(Model,Predictors,MAE)
+
+# 
+# kable(reg_q1, format = "html", escape = FALSE) %>%
+#   kable_styling("hover", full_width = FALSE) %>%
+#   column_spec(1:2, width = "2cm") %>%
+#   add_header_above(c(" " = 1, "Figure 2.1: Model Evaluation" = 2))
+
+reg_q1 %>% select(Model, Predictors, MAE)%>%
+  mutate(
+Model = color_tile("white", "coral")(Model),
+    Predictors = (Predictors),
+    MAE = (round(MAE,3))) %>%
+kable("html", escape = F, align = 'c') %>% kable_styling("hover", full_width = F, html_font = 'Cambria') %>% column_spec(1:3, width = "8cm") %>% add_header_above(c("Figure 2.1: Model Evaluation" = 3))
+
+
+```
+<br>
+
+It appears that the second model, with all variables and one significant interaction, provides the best information to predict the self-reported mental health score more accurately. On the contrary, the lack of any variables in the empty model performs the worst in predicting self-reported mental health score as expected. Thus, we conclude that model that contains the combination of all individual predictors and the best interaction effect can predict the Standardized Self-Reported Mental Health Scores the best. However, none of the models fit the observations by simple visualization. We will now use similar modelling structures to examine each individual self-reported mental health conditions. 
+
+```{r, eval = T, echo = F, results = "asis", warning=FALSE, message=FALSE}
+ b = ggplot(total_mh_res_1b, aes(x= .fitted, y= .resid)) +
+    geom_point() +
+    geom_smooth(method='lm', color = '#1DB954') +
+    geom_abline(slope=0, intercept=0) +
+    xlab('Predictions') +
+    ylab('Residuals') +
+    ggtitle('Second Model Performance')
+  
+  b
+```
+
+
+<br>
+
+### Individual Mental Health Scores Predictions
+
+<br>
+
+We will start by examining the self-reported mental health condition `Depression`. 
+
+<br>
+
+```{r, echo = F, eval = T, results = "asis", warning=FALSE}
+q2_1_tbl = df5 %>%
+  select(-c(24, 26:28)) %>%
+  mutate( `All Variables` = predict(lm(Depression ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music, data = df5))) %>%
+
+  mutate(`All Variables +  Age * Video Game Music [Frequency]` = predict(lm(Depression ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music + (Age * frequency_video_game_music), data = df5))) %>%
+
+  mutate(`Only Significant Variables` = predict(lm(Depression ~ frequency_edm + Instrumentalist, data = df5))) %>%
+
+  mutate(`Only Significant Variables and Interactions` = predict(lm(Depression ~ frequency_edm + Instrumentalist + (Age * frequency_video_game_music), data = df5))) %>%
+
+  mutate(`Empty` = predict(lm(Depression ~ 1, data = df5)))
+```
+
+```{r, echo = F, eval = T, results = "asis", warning=FALSE, message=FALSE}
+q2_a_tbl = q2_1_tbl %>%
+  gather(`All Variables`, `All Variables +  Age * Video Game Music [Frequency]`, `Only Significant Variables`, `Only Significant Variables and Interactions`, `Empty`, key = "Predictors", value = "Predictions", factor_key = T)
+
+# b = ggplot(filter(q2_a_tbl)) +
+#   geom_point(aes(x = hours_per_day, y = Depression), alpha = 0.05, stroke = 0) +
+#   geom_line(aes(color = Predictors, x = hours_per_day, y = Predictions)) +
+#   theme_minimal() +
+#   xlab('Hours Per Day') +
+#   ylab('Depression') +
+#   ggtitle('Cumulative Models for Depression')
+# 
+# plotly_plot = ggplotly(b, width=875)
+# 
+# plotly_plot
+
+b = ggplot(filter(q2_a_tbl)) +
+  geom_point(aes(x = hours_per_day, y = Depression), alpha = 0.05, stroke = 0) +
+  geom_line(aes(x = hours_per_day, y = Predictions, color = Predictors)) +
+  theme_minimal() +
+  xlab('Hours Per Day') +
+  ylab('Total Mental Health Score') +
+  ggtitle('Cumulative Models for Depression Scores') +
+  transition_states(after_stat(Predictors), transition_length = 2, state_length = 1) +
+  ease_aes('linear') +
+  transition_reveal(hours_per_day)
+
+
+
+#plotly_plot = ggplotly(a, width=875)
+# 
+#plotly_plot
+
+width_in_pixels = 1000
+
+# Save the animation as a gif with the specified width
+animate(b, width = width_in_pixels, height = 500, renderer = gifski_renderer(), res = 130)
+
+# lol123 = ggplot(total_mh_res_1a, aes(x= .fitted, y= .resid)) +
+#   geom_point(aes(group = seq_along(.resid))) +
+#   geom_line(method='lm') +
+#   geom_abline(slope=0, intercept=0) +
+#   transition_states(after_stat(.fitted), transition_length = 2, state_length = 1) +
+#   ease_aes('linear') +
+#   transition_reveal(.fitted)
+# 
+# #animate(lol123, width = width_in_pixels, height = 500, renderer = gifski_renderer(), res = 130)
+# animate(lol123, fps = 10, duration = 2)
+
+```
+
+<br>
+
+Now we will look at the comparison between all models' MAE to pick the best model that predict `Depression`.
+
+<br>
+```{r, eval = T, echo = F, results = "asis", warning=FALSE}
+lol2 = c('Second','First','Fourth','Third','Fifth')
+reg_q2 = q2_a_tbl %>% 
+  rowwise() %>%
+  mutate(MAE = mae(`Depression`, Predictions)) %>%
+  group_by(Predictors) %>%
+  summarise(MAE = mean(MAE)) %>%
+  arrange(MAE) %>%
+  mutate(Model = lol) %>%
+  select(Model,Predictors,MAE)
+
+# kable(reg_q2, format = "html", escape = FALSE) %>%
+#   kable_styling("hover", full_width = FALSE) %>%
+#   column_spec(1:2, width = "2cm") %>%
+#   add_header_above(c(" " = 1, "Figure 2.2: Model Evaluation" = 2))
+
+reg_q2 %>% select(Model, Predictors, MAE)%>%
+  mutate(
+Model = color_tile("white", "coral")(Model),
+    Predictors = (Predictors),
+    MAE = (round(MAE,3))) %>%
+kable("html", escape = F, align = 'c') %>% kable_styling("hover", full_width = F, html_font = 'Cambria') %>% column_spec(1:3, width = "8cm") %>% add_header_above(c("Figure 2.2: Model Evaluation" = 3))
+```
+
+<br>
+
+Next, we will look at the next self-reported mental health condition, `OCD`.
+
+<br>
+
+
+```{r, echo = F, eval = T, results = "asis", warning=FALSE, message=FALSE}
+
+q3_a_tbl = df5 %>%
+  select(-c(24:26,28)) %>%
+  mutate( `All Variables` = predict(lm(OCD ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music, data = df5))) %>%
+
+  mutate(`All Variables + Age * Pop [Frequency]` = predict(lm(OCD ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music + (Age * frequency_pop), data = df5))) %>%
+
+  mutate(`All Significant Variables` = predict(lm(OCD ~ frequency_lofi + frequency_metal, data = df5))) %>%
+
+  mutate(`All Significant Variables and Interactions` = predict(lm(OCD ~ frequency_lofi + frequency_metal + (Age * frequency_pop), data = df5))) %>%
+
+  mutate(`Empty` = predict(lm(OCD ~ 1, data = df5)))
+
+q2_b_tbl = q3_a_tbl %>%
+  gather(`All Variables`, `All Variables + Age * Pop [Frequency]`, `All Significant Variables`, `All Significant Variables and Interactions`, `Empty`, key = "Predictors", value = "Predictions", factor_key = T)
+
+# c = ggplot(filter(q2_b_tbl)) +
+#   geom_point(aes(x = hours_per_day, y = OCD), alpha = 0.05, stroke = 0) +
+#   geom_line(aes(color = Predictors, x = hours_per_day, y = Predictions)) +
+#   theme_minimal()+
+#   xlab('Hours Per Day') +
+#   ylab('OCD') +
+#   ggtitle('Cumulative Models for OCD')
+# 
+# 
+# plotly_plot = ggplotly(c, width=875)
+# 
+# plotly_plot
+
+
+c = ggplot(filter(q2_b_tbl)) +
+  geom_point(aes(x = hours_per_day, y = OCD), alpha = 0.05, stroke = 0) +
+  geom_line(aes(x = hours_per_day, y = Predictions, color = Predictors)) +
+  theme_minimal() +
+  xlab('Hours Per Day') +
+  ylab('Total Mental Health Score') +
+  ggtitle('Cumulative Models for OCD') +
+  transition_states(after_stat(Predictors), transition_length = 2, state_length = 1) +
+  ease_aes('linear') +
+  transition_reveal(hours_per_day)
+
+
+width_in_pixels = 1000
+
+# Save the animation as a gif with the specified width
+animate(c, width = width_in_pixels, height = 500, renderer = gifski_renderer(), res = 130)
+
+
+```
+
+<br>
+
+Below displays the model comparison and the corresponding most optimal model.
+
+<br>
+```{r, echo = F, eval = T, results = "asis", warning=FALSE}
+
+lol3 = c('Second','First','Fourth','Third','Fifth')
+reg_q3 = q2_b_tbl %>% 
+  rowwise() %>%
+  mutate(MAE = mae(`OCD`, Predictions)) %>%
+  group_by(Predictors) %>%
+  summarise(MAE = mean(MAE)) %>%
+  arrange(MAE) %>%
+  mutate(Model = lol) %>%
+  select(Model,Predictors,MAE)
+ 
+# kable(reg_q3, format = "html", escape = FALSE) %>%
+#   kable_styling("hover", full_width = FALSE) %>%
+#   column_spec(1:2, width = "2cm") %>%
+#   add_header_above(c(" " = 1, "Figure 2.3: Model Evaluation" = 2))
+
+reg_q3 %>% select(Model, Predictors, MAE)%>%
+  mutate(
+Model = (Model),
+    Predictors = (Predictors),
+    MAE = (round(MAE,3))) %>%
+kable("html", escape = F, align = 'c') %>% kable_styling("hover", full_width = F, html_font = 'Cambria') %>% column_spec(1:3, width = "8cm") %>% add_header_above(c("Figure 2.3: Model Evaluation" = 3))
+
+
+```
+<br>
+Based on the table above, model 2 again performs the best among the five models. 
+
+
+We will now use similar logics to examine the modelling performance for `Insomnia`.
+
+<br>
+
+
+```{r, echo = F, eval = T, results = "asis", warning=FALSE, message=FALSE}
+
+q2_2_tbl_I = df5 %>% 
+  select(-c(24, 25, 27,28)) %>%
+  mutate( `All Variables` = predict(lm(Insomnia ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music, data = df5))) %>%
+
+  mutate(`All Variables + Age * Pop [Frequency]` = predict(lm(Insomnia ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music + (Age * frequency_pop), data = df5))) %>%
+
+  mutate(`All Significant Variables` = predict(lm(Insomnia ~ frequency_lofi + frequency_metal, data = df5))) %>%
+
+  mutate(`All Significant Variables and Interactions` = predict(lm(Insomnia ~ frequency_lofi + frequency_metal + (Age * frequency_pop), data = df5))) %>%
+
+  mutate(`Empty` = predict(lm(Insomnia ~ 1, data = df5)))
+
+q2_b_tbl_I = q2_2_tbl_I %>%
+  gather(`All Variables`, `All Variables + Age * Pop [Frequency]`, `All Significant Variables`, `All Significant Variables and Interactions`, `Empty`, key = "Predictors", value = "Predictions", factor_key = T)
+
+# d = ggplot(filter(q2_b_tbl_I)) +
+#   geom_point(aes(x = hours_per_day, y = Insomnia), alpha = 0.05, stroke = 0) +
+#   geom_line(aes(color = Predictors, x = hours_per_day, y = Predictions)) +
+#   theme_minimal()+
+#   xlab('Hours Per Day') +
+#   ylab('Insomnia') +
+#   ggtitle('Cumulative Models for Insomnia')
+# 
+# 
+# plotly_plot = ggplotly(d, width=875)
+# 
+# plotly_plot
+
+
+d = ggplot(filter(q2_b_tbl_I)) +
+  geom_point(aes(x = hours_per_day, y = Insomnia), alpha = 0.05, stroke = 0) +
+  geom_line(aes(x = hours_per_day, y = Predictions, color = Predictors)) +
+  theme_minimal() +
+  xlab('Hours Per Day') +
+  ylab('Total Mental Health Score') +
+  ggtitle('Cumulative Models for Insomnia') +
+  transition_states(after_stat(Predictors), transition_length = 2, state_length = 1) +
+  ease_aes('linear') +
+  transition_reveal(hours_per_day)
+
+
+width_in_pixels = 1000
+
+# Save the animation as a gif with the specified width
+animate(d, width = width_in_pixels, height = 500, renderer = gifski_renderer(), res = 130)
+
+
+```
+<br>
+
+We will now calculate the corresponding MAEs and exhibit the best model for `Insomnia`.
+
+<br>
+
+
+```{r, echo = F, eval = T, results = "asis", warning=FALSE}
+
+lol4 = c('Second','First','Fourth','Third','Fifth')
+reg_q3 = q2_b_tbl_I %>% 
+  rowwise() %>%
+  mutate(MAE = mae(`Insomnia`, Predictions)) %>%
+  group_by(Predictors) %>%
+  summarise(MAE = mean(MAE)) %>%
+  arrange(MAE) %>%
+  mutate(Model = lol) %>%
+  select(Model,Predictors,MAE)
+
+# kable(reg_q3, format = "html", escape = FALSE) %>%
+#   kable_styling("hover", full_width = FALSE) %>%
+#   column_spec(1:2, width = "2cm") %>%
+#   add_header_above(c(" " = 1, "Figure 2.4: Model Evaluation" = 2))
+
+reg_q3 %>% select(Model, Predictors, MAE)%>%
+  mutate(
+Model = (Model),
+    Predictors = (Predictors),
+    MAE = (round(MAE,3))) %>%
+kable("html", escape = F, align = 'c') %>% kable_styling("hover", full_width = F, html_font = 'Cambria') %>% column_spec(1:3, width = "8cm") %>% add_header_above(c("Figure 2.4: Model Evaluation" = 3))
+```
+
+<br>
+Based on the table above, model two performs the best for predicting `Insomnia`. 
+
+Lastly, we will examine the performance of each modeling for `Anxiety`.
+<br>
+
+```{r, eval = T, echo = F, results ="asis", warning=FALSE, message=FALSE}
+q2_2_tbl_A = df5 %>%
+  select(-c(25:28)) %>%
+  mutate( `All Variables` = predict(lm(Anxiety ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music, data = df5))) %>%
+
+  mutate(`All Variables + Age * Pop [Frequency]` = predict(lm(Anxiety ~ Age +
+  while_working + Instrumentalist + Composer + Exploratory +
+  foreign_languages + frequency_classical + frequency_country + frequency_edm +
+  frequency_folk + frequency_gospel +frequency_hiphop + frequency_jazz + frequency_kpop +
+  frequency_latin + frequency_lofi + frequency_metal + frequency_pop + `frequency_r&b` +
+  frequency_rap + frequency_rock + frequency_video_game_music + (Age * frequency_pop), data = df5))) %>%
+
+  mutate(`All Significant Variables` = predict(lm(Anxiety ~ frequency_lofi + frequency_metal, data = df5))) %>%
+
+  mutate(`All Significant Variables and Interactions` = predict(lm(Anxiety ~ frequency_lofi + frequency_metal + (Age * frequency_pop), data = df5))) %>%
+
+  mutate(`Empty` = predict(lm(Anxiety ~ 1, data = df5)))
+
+q2_b_tbl_A = q2_2_tbl_A %>%
+  gather(`All Variables`, `All Variables + Age * Pop [Frequency]`, `All Significant Variables`, `All Significant Variables and Interactions`, `Empty`, key = "Predictors", value = "Predictions", factor_key = T)
+
+
+# e = ggplot(filter(q2_b_tbl_A)) +
+#   geom_point(aes(x = hours_per_day, y = Anxiety), alpha = 0.05, stroke = 0) +
+#   geom_line(aes(color = Predictors, x = hours_per_day, y = Predictions)) +
+#   theme_minimal()+
+#   xlab('Hours Per Day') +
+#   ylab('Anxiety') +
+#   ggtitle('Cumulative Models for Anxiety')
+# 
+# 
+# plotly_plot = ggplotly(e, width=875)
+# 
+# plotly_plot
+
+
+e = ggplot(filter(q2_b_tbl_A)) +
+  geom_point(aes(x = hours_per_day, y = Anxiety), alpha = 0.05, stroke = 0) +
+  geom_line(aes(x = hours_per_day, y = Predictions, color = Predictors)) +
+  theme_minimal() +
+  xlab('Hours Per Day') +
+  ylab('Total Mental Health Score') +
+  ggtitle('Cumulative Models for Anixety') +
+  transition_states(after_stat(Predictors), transition_length = 2, state_length = 1) +
+  ease_aes('linear') +
+  transition_reveal(hours_per_day)
+
+
+width_in_pixels = 1000
+
+# Save the animation as a gif with the specified width
+animate(e, width = width_in_pixels, height = 500, renderer = gifski_renderer(), res = 130)
+
+```
+
+<br>
+
+Below is our last comparision table that displays all the models for `Anxiety`.
+
+
+```{r, echo = F, eval =T, results = "asis", warning=FALSE}
+lol5 = c('First','Second','Fourth','Third','Fifth')
+reg_q4 = q2_b_tbl_A %>% 
+  rowwise() %>%
+  mutate(MAE = mae(`Anxiety`, Predictions)) %>%
+  group_by(Predictors) %>%
+  summarise(MAE = mean(MAE)) %>%
+  arrange(MAE) %>%
+  mutate(Model = lol5) %>%
+  select(Model,Predictors,MAE)
+
+# kable(reg_q4, format = "html", escape = FALSE, table.attr = "style='length:30%;'") %>%
+#   kable_styling("hover", full_width = FALSE) %>%
+#   column_spec(1:2, width = "2cm") %>%
+#   add_header_above(c(" " = 1, "Figure 2.5: Model Evaluation" = 2))
+
+reg_q4 %>% select(Model, Predictors, MAE)%>%
+  mutate(
+Model = (Model),
+    Predictors = (Predictors),
+    MAE = (round(MAE,3))) %>%
+kable("html", escape = F, align = 'c') %>% kable_styling("hover", full_width = F, html_font = 'Cambria') %>% column_spec(1:3, width = "8cm") %>% add_header_above(c("Figure 2.5: Model Evaluation" = 3))
+
+```
+<br>
+Given the table above, model one predicts the best score for `Anxiety`. Interestingly, this is also the only self-reported mental health condition that has model one as the best-performing model. 
+
+# Conclusion
+
+<br>
+<blockquote>
+
+In conclusion, Group Three’s project explored the intriguing link between music and mental health, using the 
+<a href="https://www.kaggle.com/datasets/catherinerasgaitis/mxmh-survey-results" style="color: #A7C7E7;">Music & Mental Health Survey Results</a> dataset. This exploration was done through the investigation of two questions: "What is the most effective model for assessing cumulative self-reported mental health scores?" and "What is the optimal model for evaluating each individual self-reported mental health condition?" The group was driven to explore these questions to find valuable insights to the field of music therapy and mental health research. With question one, Group Three found that model two for the combined self-reported mental health scores, which had the lowest MAE, had the best model; while the empty model performed the worst. With question two, Group Three found that all the model evaluations have similar structures. It could be observed that the second model, which had all variables and one specific interaction, was the best for predicting the score for Depression, OCD, and Insomnia. However, the first model, which examined all variables alone, was the best for predicting the score for Anxiety. With this in mind, it is expected that Anxiety performs best as subjects are more likely to report higher levels of Anxiety as it doesn’t need a medical diagnosis. These findings lead to an ultimate conclusion that self-reported mental health conditions cannot be accurately predicted using music preferences alone, which the group did not expect. 
+
+While aiming to identify effective models for assessing cumulative self-reported mental health scores and individual mental health conditions, Group Three faced challenges due to the limited number of observations in the dataset. Given the small sample size, the models did not perform as well as hoped. The limited observations affected the reliability and generalizability of our results, making it challenging to draw robust conclusions. Moreover, linear regression models can be powerful tools for predicting relationships between variables, but they are not immune to errors. One factor that could have contributed to the presence of errors in our linear regression models was choosing to not iteratively use forward or backward selection to find the combination of variables that minimizes the mean absolute error.
+
+To mitigate these errors it would be integral to use different approaches. For example, stepwise regression to iteratively select the best combination of variables that produce the lowest mean absolute error. Additionally, creating a neural network and utilizing gradient descent to better minimize the cost function could be beneficial to revamping our model. 
+
+Despite the limitations, the project serves as a stepping stone for future research in this field. The group recognizes the need for larger and more diverse datasets to provide more meaningful insights into the relationship between music preferences and mental well-being. 
+In the real world, understanding the therapeutic potential of music remains crucial for improving mental health interventions. Moving forward, Group Three encourages researchers to try more diverse models to optimize accuracy. By doing so, the true potential of music therapy and its role in promoting holistic well-being can be unlocked for individuals worldwide. 
